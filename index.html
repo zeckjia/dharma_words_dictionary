@@ -135,8 +135,6 @@
       white-space: nowrap;
     }
 
-    thead th.col-relevance { text-align: center; }
-
     tbody tr {
       border-bottom: 1px solid #f0f0f0;
       transition: background 0.15s;
@@ -162,33 +160,6 @@
     }
 
     .comment-cell { color: #555; font-style: italic; }
-
-    .relevance-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      min-width: 80px;
-    }
-
-    .relevance-track {
-      width: 72px;
-      height: 6px;
-      background: #e5e7eb;
-      border-radius: 3px;
-      overflow: hidden;
-    }
-
-    .relevance-fill {
-      height: 100%;
-      border-radius: 3px;
-      background: #74BCD9;
-    }
-
-    .relevance-label {
-      font-size: 0.75rem;
-      color: #6b7280;
-    }
 
     @media (max-width: 640px) {
       header { padding: 14px 16px; }
@@ -238,7 +209,7 @@
       errorPrefix:  'Error: ',
       initialMsg:   'Enter a word above to start searching.',
       resultCount:  (n) => `${n} result${n !== 1 ? 's' : ''} found`,
-      cols: { chn: 'Chinese', eng: 'English', type: 'Type', from_src: 'Source', comment: 'Comment', relevance: 'Relevance' },
+      cols: { chn: 'Chinese', eng: 'English', type: 'Type', from_src: 'Source', comment: 'Comment' },
     },
     zh: {
       headerTitle: '佛法术语查询',
@@ -249,11 +220,11 @@
       errorPrefix:  '错误：',
       initialMsg:   '在上方输入词汇开始查询。',
       resultCount:  (n) => `共找到 ${n} 条结果`,
-      cols: { chn: '中文', eng: '英文', type: '类别', from_src: '摘自', comment: '备注', relevance: '相关度' },
+      cols: { chn: '中文', eng: '英文', type: '类别', from_src: '摘自', comment: '备注' },
     },
   };
 
-  const COL_ORDER = ['chn', 'eng', 'type', 'from_src', 'comment', 'relevance'];
+  const COL_ORDER = ['chn', 'eng', 'type', 'from_src', 'comment'];
 
   function t(key) { return i18n[currentLang][key]; }
 
@@ -326,20 +297,11 @@
     const cols = t('cols');
 
     const thead = COL_ORDER.map(c =>
-      `<th${c === 'relevance' ? ' class="col-relevance"' : ''}>${cols[c]}</th>`
+      `<th>${cols[c]}</th>`
     ).join('');
 
     const tbody = data.map(row => {
       const cells = COL_ORDER.map(col => {
-        if (col === 'relevance') {
-          const pct = Math.min(100, Math.max(0, Number(row.relevance) || 0));
-          return `<td>
-            <div class="relevance-wrap">
-              <div class="relevance-track"><div class="relevance-fill" style="width:${pct}%"></div></div>
-              <span class="relevance-label">${pct}</span>
-            </div>
-          </td>`;
-        }
         if (col === 'type' || col === 'from_src') {
           const val = row[col];
           return `<td>${val ? `<span class="tag">${escHtml(val)}</span>` : ''}</td>`;
