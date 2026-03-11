@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>佛法术语查询/Dharma Words Lookup</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #f5f7fa;
+      color: #333;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #74BCD9;
+      color: #fff;
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    header h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: 0.5px; }
+
+    .lang-toggle {
+      display: flex;
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .lang-toggle button {
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.7);
+      padding: 6px 14px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .lang-toggle button.active {
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .lang-toggle button:hover:not(.active) {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+    }
+
+    main {
+      max-width: 1000px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    .search-box {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .search-box input {
+      flex: 1;
+      padding: 12px 18px;
+      font-size: 1rem;
+      border: 2px solid #d1d5db;
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.2s;
+      background: #fff;
+    }
+
+    .search-box input:focus { border-color: #1a56db; }
+
+    .search-box button {
+      padding: 12px 28px;
+      background: #1a56db;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    .search-box button:hover { background: #1648c0; }
+    .search-box button:disabled { background: #93aee8; cursor: not-allowed; }
+
+    .status {
+      text-align: center;
+      padding: 20px;
+      color: #6b7280;
+      font-size: 0.95rem;
+    }
+
+    .status.error { color: #dc2626; }
+
+    .result-count {
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-bottom: 10px;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      border-radius: 10px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      font-size: 0.92rem;
+    }
+
+    thead tr {
+      background: #1a56db;
+      color: #fff;
+    }
+
+    thead th {
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    thead th.col-relevance { text-align: center; }
+
+    tbody tr {
+      border-bottom: 1px solid #f0f0f0;
+      transition: background 0.15s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #f0f5ff; }
+
+    tbody td {
+      padding: 11px 16px;
+      vertical-align: top;
+      line-height: 1.5;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      background: #e0e7ff;
+      color: #3730a3;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      font-weight: 500;
+    }
+
+    .comment-cell { color: #555; font-style: italic; }
+
+    .relevance-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      min-width: 80px;
+    }
+
+    .relevance-track {
+      width: 72px;
+      height: 6px;
+      background: #e5e7eb;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .relevance-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: #1a56db;
+    }
+
+    .relevance-label {
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+
+    @media (max-width: 640px) {
+      header { padding: 14px 16px; }
+      header h1 { font-size: 1.1rem; }
+      main { margin: 20px auto; }
+      thead th, tbody td { padding: 9px 10px; font-size: 0.82rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1 id="header-title">English–Chinese Dictionary</h1>
+  <div class="lang-toggle">
+    <button id="btn-en" class="active" onclick="setLang('en')">EN</button>
+    <button id="btn-zh" onclick="setLang('zh')">中文</button>
+  </div>
+</header>
+
+<main>
+  <div class="search-box">
+    <input type="text" id="search-input" placeholder="Search a word…" autocomplete="off" />
+    <button id="search-btn" onclick="doSearch()">Search</button>
+  </div>
+
+  <div id="status" class="status">Enter a word above to start searching.</div>
+  <div id="result-count" class="result-count" style="display:none;"></div>
+  <div id="table-container"></div>
+</main>
+
+<script>
+  const SUPABASE_URL = 'https://olwcgjtkjmrxwanwrnsc.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_Gy2j8w_5N5x_2EAf1rcIxQ_ILJ1EScu';
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let currentLang = 'en';
+  let lastResults = [];
+
+  const i18n = {
+    en: {
+      headerTitle: 'English–Chinese Dictionary',
+      placeholder:  'Search a word…',
+      searchBtn:    'Search',
+      searching:    'Searching…',
+      noResults:    'No results found.',
+      errorPrefix:  'Error: ',
+      initialMsg:   'Enter a word above to start searching.',
+      resultCount:  (n) => `${n} result${n !== 1 ? 's' : ''} found`,
+      cols: { chn: 'Chinese', eng: 'English', type: 'Type', from_src: 'Source', comment: 'Comment', relevance: 'Relevance' },
+    },
+    zh: {
+      headerTitle: '英汉词典',
+      placeholder:  '输入词汇查询…',
+      searchBtn:    '查询',
+      searching:    '查询中…',
+      noResults:    '未找到相关结果。',
+      errorPrefix:  '错误：',
+      initialMsg:   '在上方输入词汇开始查询。',
+      resultCount:  (n) => `共找到 ${n} 条结果`,
+      cols: { chn: '中文', eng: '英文', type: '类别', from_src: '摘自', comment: '备注', relevance: '相关度' },
+    },
+  };
+
+  const COL_ORDER = ['chn', 'eng', 'type', 'from_src', 'comment', 'relevance'];
+
+  function t(key) { return i18n[currentLang][key]; }
+
+  function setLang(lang) {
+    currentLang = lang;
+    document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+    document.getElementById('btn-zh').classList.toggle('active', lang === 'zh');
+    document.getElementById('header-title').textContent = t('headerTitle');
+    document.getElementById('search-input').placeholder  = t('placeholder');
+    document.getElementById('search-btn').textContent    = t('searchBtn');
+
+    const status = document.getElementById('status');
+    if (status.style.display !== 'none' && status.dataset.msgKey) {
+      status.textContent = t(status.dataset.msgKey);
+    }
+
+    if (lastResults.length) {
+      document.getElementById('result-count').textContent = t('resultCount')(lastResults.length);
+      renderTable(lastResults);
+    }
+  }
+
+  async function doSearch() {
+    const query = document.getElementById('search-input').value.trim();
+    if (!query) return;
+
+    const status    = document.getElementById('status');
+    const countEl   = document.getElementById('result-count');
+    const container = document.getElementById('table-container');
+    const btn       = document.getElementById('search-btn');
+
+    btn.disabled    = true;
+    btn.textContent = t('searching');
+    status.textContent = '';
+    status.style.display = 'none';
+    countEl.style.display = 'none';
+    container.innerHTML = '';
+    lastResults = [];
+
+    const { data, error } = await supabaseClient.rpc('lookup_words', { info: query });
+
+    btn.disabled    = false;
+    btn.textContent = t('searchBtn');
+
+    if (error) {
+      status.textContent   = t('errorPrefix') + error.message;
+      status.className     = 'status error';
+      status.dataset.msgKey = '';
+      status.style.display = '';
+      return;
+    }
+
+    status.className = 'status';
+
+    if (!data || data.length === 0) {
+      status.textContent    = t('noResults');
+      status.dataset.msgKey = 'noResults';
+      status.style.display  = '';
+      return;
+    }
+
+    lastResults = data.slice(0, 50);
+    countEl.textContent   = t('resultCount')(lastResults.length);
+    countEl.style.display = '';
+    renderTable(lastResults);
+  }
+
+  function renderTable(data) {
+    const container = document.getElementById('table-container');
+    const cols = t('cols');
+
+    const thead = COL_ORDER.map(c =>
+      `<th${c === 'relevance' ? ' class="col-relevance"' : ''}>${cols[c]}</th>`
+    ).join('');
+
+    const tbody = data.map(row => {
+      const cells = COL_ORDER.map(col => {
+        if (col === 'relevance') {
+          const pct = Math.min(100, Math.max(0, Number(row.relevance) || 0));
+          return `<td>
+            <div class="relevance-wrap">
+              <div class="relevance-track"><div class="relevance-fill" style="width:${pct}%"></div></div>
+              <span class="relevance-label">${pct}</span>
+            </div>
+          </td>`;
+        }
+        if (col === 'type' || col === 'from_src') {
+          const val = row[col];
+          return `<td>${val ? `<span class="tag">${escHtml(val)}</span>` : ''}</td>`;
+        }
+        if (col === 'comment') {
+          return `<td class="comment-cell">${escHtml(row.comment || '')}</td>`;
+        }
+        return `<td>${escHtml(String(row[col] ?? ''))}</td>`;
+      }).join('');
+      return `<tr>${cells}</tr>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div class="table-wrapper">
+        <table>
+          <thead><tr>${thead}</tr></thead>
+          <tbody>${tbody}</tbody>
+        </table>
+      </div>`;
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  document.getElementById('search-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doSearch();
+  });
+</script>
+</body>
+</html>
